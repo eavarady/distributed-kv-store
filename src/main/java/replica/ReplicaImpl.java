@@ -47,11 +47,23 @@ public class ReplicaImpl extends UnicastRemoteObject
         
         //TODO:
         // 1) Check if I am currently the primary. If not, print an error message and return false
+        if (!isPrimary) {
+            System.err.println("[Replica " + myId + "] ERROR: NOT PRIMARY, CANNOT HANDLE PUT");
+            return false;
+        }
         // 2) Update local state (store) by adding the key, value pair
+        store.put(key, value);
         // 3) Push full state to backups 
-        // 4) Return true (success), if all goes well. 
-        
-
+        for (ReplicaControl backup : backups) {
+            try {
+                backup.pushFullState(new HashMap<>(store));
+            } catch (RemoteException e) {
+                System.err.println("[Replica " + myId + "] ERROR: FAILED TO PUSH STATE TO FOLLOWING BACKUP: " + e.getMessage());
+            }
+        }
+        // 4) Return true (success), if all goes well.
+        System.out.println("[Replica " + myId + "] PUT key=" + key + ", value=" + value);
+        System.out.println("[Replica " + myId + "] Pushed state to backups: " + store);
         return true;
     }
 
@@ -59,9 +71,15 @@ public class ReplicaImpl extends UnicastRemoteObject
     public synchronized String handleClientGet(String key) throws RemoteException {
         //TODO:
         // 1) Retrieve the value corresponding to the key
+        String value = store.get(key);
+        System.out.println("[Replica " + myId + "] GET key=" + key + ", value=" + value);
         // 2) Return null if the key does not exist; otherwise, return value
-        
-        return null;
+        if (value != null) {
+            return value;
+        }
+        else {
+            return null;
+        }
     }
 
     @Override
@@ -69,15 +87,28 @@ public class ReplicaImpl extends UnicastRemoteObject
 
         //TODO:
         // Replace the store with the newState
+        store.clear();
+        store.putAll(newState);
         System.out.println("[Replica " + myId + "] pushFullState applied. Store now: " + store);
     }
     @Override
     public synchronized void promoteToPrimary() throws RemoteException {
         // TODO:
         // 1) Set this replica to act as primary.
+        isPrimary = true;
+        System.out.println("[Replica " + myId + "] Promoted to PRIMARY.");
         // 2) Discover current backups in the RMI registry.
+        List<ReplicaControl> discoveredBackups = discoverBackups();
+        System.out.println("[Replica " + myId + "] Discovered " + discoveredBackups.size() + " backups.");
         // 3) Call setBackups(...) with the discovered list.
+        setBackups(discoveredBackups);
         // 4) Log useful information.
+        System.out.println("[Replica " + myId + "] Backups set.");
+        System.out.println("Current Backups:");
+        //For backup in discoveredBackups, print its id
+        for (ReplicaControl backup : discoveredBackups) {
+            System.out.println(" - " + backup);
+        }
     }
 
     @Override
@@ -95,9 +126,14 @@ public class ReplicaImpl extends UnicastRemoteObject
     private List<ReplicaControl> discoverBackups() {
         // TODO:
         // 1) Query the RMI registry for all bindings whose names match "replica<id>".
+        List<ReplicaControl> result = new ArrayList<>();
+        
         // 2) Skip your own name ("replica" + myId).
+
         // 3) For each, look it up, cast to ReplicaControl, and only include if ping() returns true.
+
         // 4) Return the list.
-        return new ArrayList<>();
+        return result;
+            
     } 
 }
