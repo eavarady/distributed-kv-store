@@ -1,10 +1,12 @@
 package replica;
 
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class ReplicaImpl extends UnicastRemoteObject
@@ -96,5 +98,6 @@ public class ReplicaImpl extends UnicastRemoteObject
         // 2) Skip your own name ("replica" + myId).
         // 3) For each, look it up, cast to ReplicaControl, and only include if ping() returns true.
         // 4) Return the list.
-    }
+        return new ArrayList<>();
+    } 
 }
