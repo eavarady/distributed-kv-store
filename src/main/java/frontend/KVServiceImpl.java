@@ -1,17 +1,17 @@
 package frontend;
 
-import io.grpc.stub.StreamObserver;
-import kv.KVServiceGrpc;
-import kv.PutRequest;
-import kv.PutReply;
-import kv.GetRequest;
-import kv.GetReply;
-import replica.PrimaryAPI;
-import replica.ReplicaControl;
-
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
+
+import io.grpc.stub.StreamObserver;
+import kv.GetReply;
+import kv.GetRequest;
+import kv.KVServiceGrpc;
+import kv.PutReply;
+import kv.PutRequest;
+import replica.PrimaryAPI;
+import replica.ReplicaControl;
 
 public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
 
@@ -69,7 +69,6 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
                 System.err.println("NO BACKUPS AVAILABLE FOR FAILOVER");
             }  
         }
-        // TODO: 
         // Build a reply and send it back to the client
         PutReply reply = PutReply.newBuilder().setOk(ok).build();
         responseObserver.onNext(reply);
@@ -81,20 +80,43 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
         String value = null;
         boolean found = false;
 
-        // TODO: 
-        // 1) Call handleClientGet on the primary replica (primaryStub)
-        // 2) update value and found variables (if needed)
+        try {
+            // 1) Call handleClientGet on the primary replica (primaryStub)
+            value = primaryStub.handleClientGet(request.getKey());
+            // 2) update value and found variables (if needed)
+            if (value != null) {
+                found = true;
+            }
         // 3) Implement a failure detector –
         //      a) Use try, catch (using appropriate exception) to detect failure
-        //      b) If primary has failed, then failover to backup, using failoverToBackup()
-
-
-        // TODO: 
+        } catch (RemoteException primaryFail) {
+            System.err.println("PRIMARY FAILED: " + primaryFail.getMessage());
+            //      b) If primary has failed, then failover to backup, using failoverToBackup()
+            if (!remainingBackups.isEmpty()) {
+                // Promote the first backup in the list
+                ReplicaControl newBackup = remainingBackups.get(0);
+                try {
+                    // Promote the backup to primary
+                    failoverToBackup(newBackup);
+                    // Retry the get operation on the new primary
+                    value = primaryStub.handleClientGet(request.getKey());
+                    // Update value and found variables (if needed)
+                    if (value != null) {
+                        found = true;
+                    }
+                } catch (RemoteException failoverFail) {
+                    // If failover failed, log the error
+                    System.err.println("FAILOVER FAILED: " + failoverFail.getMessage());
+                }
+            } else {
+                // No backups available
+                System.err.println("NO BACKUPS AVAILABLE FOR FAILOVER");
+            }  
+        }
         // Build a reply and send it back to the client
-        PutReply reply = PutReply.newBuilder()
-                .setOk(ok)
-                .build();
+        GetReply reply = GetReply.newBuilder().setValue(value).setFound(found).build();
         responseObserver.onNext(reply);
+        responseObserver.onCompleted();
     }
 }
 
