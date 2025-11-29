@@ -29,9 +29,14 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
     private synchronized void failoverToBackup(ReplicaControl backupStub) throws RemoteException {
         // TODO:
         // 1) Call promoteToPrimary() on the backupStub.
+        backupStub.promoteToPrimary();
         // 2) Update this.primaryStub so that future requests go to the new primary.
+        this.primaryStub = (PrimaryAPI) backupStub;
         // 3) Remove this backup from remainingBackups (it is no longer a backup).
+        this.remainingBackups.remove(backupStub);
         // 4) Optionally: log what happened.
+        System.out.println("FAILOVER: NEW PRIMARY PROMOTED");
+        System.out.println("New primary is now: " + backupStub);
     }
 
     @Override
