@@ -1,6 +1,9 @@
 package replica;
 
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,8 +47,6 @@ public class ReplicaImpl extends UnicastRemoteObject
 
     @Override
     public synchronized boolean handleClientPut(String key, String value) throws RemoteException {
-        
-        //TODO:
         // 1) Check if I am currently the primary. If not, print an error message and return false
         if (!isPrimary) {
             System.err.println("[Replica " + myId + "] ERROR: NOT PRIMARY, CANNOT HANDLE PUT");
@@ -69,7 +70,6 @@ public class ReplicaImpl extends UnicastRemoteObject
 
     @Override
     public synchronized String handleClientGet(String key) throws RemoteException {
-        //TODO:
         // 1) Retrieve the value corresponding to the key
         String value = store.get(key);
         System.out.println("[Replica " + myId + "] GET key=" + key + ", value=" + value);
@@ -84,8 +84,6 @@ public class ReplicaImpl extends UnicastRemoteObject
 
     @Override
     public synchronized void pushFullState(Map<String,String> newState) throws RemoteException {
-
-        //TODO:
         // Replace the store with the newState
         store.clear();
         store.putAll(newState);
@@ -93,7 +91,6 @@ public class ReplicaImpl extends UnicastRemoteObject
     }
     @Override
     public synchronized void promoteToPrimary() throws RemoteException {
-        // TODO:
         // 1) Set this replica to act as primary.
         isPrimary = true;
         System.out.println("[Replica " + myId + "] Promoted to PRIMARY.");
@@ -124,16 +121,53 @@ public class ReplicaImpl extends UnicastRemoteObject
     }
 
     private List<ReplicaControl> discoverBackups() {
-        // TODO:
-        // 1) Query the RMI registry for all bindings whose names match "replica<id>".
         List<ReplicaControl> result = new ArrayList<>();
-        
-        // 2) Skip your own name ("replica" + myId).
 
-        // 3) For each, look it up, cast to ReplicaControl, and only include if ping() returns true.
+        try {
+            // Set up registry variable
+            // Default host: localhost
+            // Default port: 1099
+            Registry rmi_registry = LocateRegistry.getRegistry();
+            // Get list of all names in registry
+            String[] names = rmi_registry.list();
+
+            // Iterate through names
+            for (String name : names) {
+                // 1) Query the RMI registry for all bindings whose names match "replica<id>".
+                if (!REPLICA_NAME.matcher(name).matches()) {
+                    continue;
+                }
+
+                // 2) Skip your own name ("replica" + myId).
+                if (name.equals("replica" + myId)) {
+                    continue;
+                }
+
+                try {
+                    // 3) For each, look it up, cast to ReplicaControl, and only include if ping() returns true.
+                    // Look up the name in the registry
+                    Object current = rmi_registry.lookup(name);
+                    // Ensure current is an instance of ReplicaControl
+                    if (!(current instanceof ReplicaControl)) {
+                        continue;
+                    }
+                    // Cast to ReplicaControl
+                    ReplicaControl rc = (ReplicaControl) current;
+                    // Ping the replica
+                    if (rc.ping()) {
+                        result.add(rc);
+                    }
+                } catch (NotBoundException | RemoteException e) {
+                    // Error looking up replica
+                    System.err.println("[Replica " + myId + "] Failed to contact " + name + ": " + e);
+                }
+            }
+        } catch (RemoteException e) {
+            // Error querying registry
+            System.err.println("[Replica " + myId + "] Error querying RMI registry: " + e);
+        }
 
         // 4) Return the list.
         return result;
-            
     } 
 }
