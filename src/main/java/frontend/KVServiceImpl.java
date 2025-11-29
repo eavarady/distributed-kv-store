@@ -43,15 +43,37 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
     public void put(PutRequest request, StreamObserver<PutReply> responseObserver) {
         boolean ok = false;
 
-        // TODO: 
+         try {
         // 1) call handleClientPut on the primary replica (primaryStub)
         // 2) update the boolean ok (if needed)
+            ok = primaryStub.handleClientPut(request.getKey(), request.getValue());
         // 3) Implement a failure detector –
         //      a) Use try, catch (using appropriate exception) to detect failure
+        } catch (RemoteException primaryFail) {
+            System.err.println("PRIMARY FAILED: " + primaryFail.getMessage());
         //      b) If primary has failed, then failover to backup, using failoverToBackup()
-
+            if (!remainingBackups.isEmpty()) {
+                // Promote the first backup in the list
+                ReplicaControl newBackup = remainingBackups.get(0);
+                try {
+                    // Promote the backup to primary
+                    failoverToBackup(newBackup);
+                    // Retry the put operation on the new primary
+                    ok = primaryStub.handleClientPut(request.getKey(), request.getValue());
+                } catch (RemoteException failoverFail) {
+                    // If failover failed, log the error
+                    System.err.println("FAILOVER FAILED: " + failoverFail.getMessage());
+                }
+            } else {
+                // No backups available
+                System.err.println("NO BACKUPS AVAILABLE FOR FAILOVER");
+            }  
+        }
         // TODO: 
         // Build a reply and send it back to the client
+        PutReply reply = PutReply.newBuilder().setOk(ok).build();
+        responseObserver.onNext(reply);
+        responseObserver.onCompleted();
     }
 
     @Override
@@ -69,6 +91,10 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
 
         // TODO: 
         // Build a reply and send it back to the client
+        PutReply reply = PutReply.newBuilder()
+                .setOk(ok)
+                .build();
+        responseObserver.onNext(reply);
     }
 }
 
