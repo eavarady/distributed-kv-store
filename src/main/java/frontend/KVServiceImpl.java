@@ -114,7 +114,7 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
             }  
         }
         // Build a reply and send it back to the client
-        GetReply reply = GetReply.newBuilder().setValue(value).setFound(found).build();
+        GetReply reply = GetReply.newBuilder().setValue(value == null ? "" : value).setFound(found).build();
         responseObserver.onNext(reply);
         responseObserver.onCompleted();
     }
