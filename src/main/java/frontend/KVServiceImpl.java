@@ -49,6 +49,7 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
         // 3) Implement a failure detector –
         //      a) Use try, catch (using appropriate exception) to detect failure
         } catch (RemoteException primaryFail) {
+            //Remote exception: primary has failed
             System.err.println("PRIMARY FAILED: " + primaryFail.getMessage());
         //      b) If primary has failed, then failover to backup, using failoverToBackup()
             if (!remainingBackups.isEmpty()) {
@@ -59,8 +60,9 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
                     failoverToBackup(newBackup);
                     // Retry the put operation on the new primary
                     ok = primaryStub.handleClientPut(request.getKey(), request.getValue());
+                // If failover failed, log the error
                 } catch (RemoteException failoverFail) {
-                    // If failover failed, log the error
+                    //Remote exception: failover has failed
                     System.err.println("FAILOVER FAILED: " + failoverFail.getMessage());
                 }
             } else {
@@ -89,6 +91,7 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
         // 3) Implement a failure detector –
         //      a) Use try, catch (using appropriate exception) to detect failure
         } catch (RemoteException primaryFail) {
+            //Remote exception: primary has failed
             System.err.println("PRIMARY FAILED: " + primaryFail.getMessage());
             //      b) If primary has failed, then failover to backup, using failoverToBackup()
             if (!remainingBackups.isEmpty()) {
@@ -103,8 +106,9 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
                     if (value != null) {
                         found = true;
                     }
+                // If failover failed, log the error
                 } catch (RemoteException failoverFail) {
-                    // If failover failed, log the error
+                    //Remote exception: failover has failed
                     System.err.println("FAILOVER FAILED: " + failoverFail.getMessage());
                 }
             } else {

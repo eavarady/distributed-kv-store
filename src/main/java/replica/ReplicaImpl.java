@@ -133,18 +133,16 @@ public class ReplicaImpl extends UnicastRemoteObject
 
             // Iterate through names
             for (String name : names) {
-                // 1) Query the RMI registry for all bindings whose names match "replica<id>".
+                // 1) Query RMI registry for all bindings whose names match "replica<id>"
                 if (!REPLICA_NAME.matcher(name).matches()) {
                     continue;
                 }
-
-                // 2) Skip your own name ("replica" + myId).
+                // 2) Skip own name ("replica" + myId)
                 if (name.equals("replica" + myId)) {
                     continue;
                 }
-
                 try {
-                    // 3) For each, look it up, cast to ReplicaControl, and only include if ping() returns true.
+                    // 3) Look up the replica in the registry, cast to ReplicaControl and only include if ping() returns true
                     // Look up the name in the registry
                     Object current = rmi_registry.lookup(name);
                     // Ensure current is an instance of ReplicaControl
@@ -157,17 +155,19 @@ public class ReplicaImpl extends UnicastRemoteObject
                     if (rc.ping()) {
                         result.add(rc);
                     }
+                // NotBoundException or RemoteException: replica could not be contacted
                 } catch (NotBoundException | RemoteException e) {
                     // Error looking up replica
                     System.err.println("[Replica " + myId + "] Failed to contact " + name + ": " + e);
                 }
             }
+        // RemoteException: error querying RMI registry
         } catch (RemoteException e) {
-            // Error querying registry
+            // Error querying RMI registry
             System.err.println("[Replica " + myId + "] Error querying RMI registry: " + e);
         }
 
-        // 4) Return the list.
+        // 4) Return the list of discovered backups
         return result;
     } 
 }
