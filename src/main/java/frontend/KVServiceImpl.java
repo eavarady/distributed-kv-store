@@ -27,7 +27,6 @@ public class KVServiceImpl extends KVServiceGrpc.KVServiceImplBase {
      * Helper to promote backup if primary died.
      */
     private synchronized void failoverToBackup(ReplicaControl backupStub) throws RemoteException {
-        // TODO:
         // 1) Call promoteToPrimary() on the backupStub.
         backupStub.promoteToPrimary();
         // 2) Update this.primaryStub so that future requests go to the new primary.
